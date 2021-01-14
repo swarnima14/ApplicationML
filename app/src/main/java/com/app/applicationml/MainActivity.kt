@@ -37,6 +37,8 @@ class MainActivity : AppCompatActivity() {
     lateinit var photoFile: File
     val FILE_NAME = "pic.jpg"
     //lateinit var imgview: ImageView
+    var pressGal: Boolean = false
+    var pressCam: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -69,7 +71,7 @@ class MainActivity : AppCompatActivity() {
 
 
 
-            if( ivImg != null)
+            if( pressCam || pressGal)
             {
 
                 var resized: Bitmap = Bitmap.createScaledBitmap(bitmap, 200, 200, true)
@@ -114,7 +116,7 @@ class MainActivity : AppCompatActivity() {
 
                 var max = getMax(outputFeature0.floatArray)
 
-                tvResult.text = townList[max]
+                tvResult.text = "Plant Name ${townList[max]}"
 
                 // Releases model resources if no longer used.
                 model.close()
@@ -166,6 +168,8 @@ class MainActivity : AppCompatActivity() {
                         Toast.makeText(this, "uploaded",Toast.LENGTH_LONG).show()
                         ivImg.setImageBitmap(null)
                         tvResult.text = ""
+                        pressCam = false
+                        pressGal =false
                     }.addOnFailureListener{
                         Toast.makeText(this, "failed ${it.message.toString()}",Toast.LENGTH_LONG).show()
                         pd.dismiss()
@@ -245,6 +249,7 @@ class MainActivity : AppCompatActivity() {
 
             bitmap = MediaStore.Images.Media.getBitmap(this.contentResolver, uri)
             Toast.makeText(this,uri.toString(),Toast.LENGTH_LONG).show()
+            pressGal = true
             }
                  else if(requestCode == 99 && resultCode == Activity.RESULT_OK)
                 {
@@ -259,6 +264,7 @@ class MainActivity : AppCompatActivity() {
                     uri = Uri.parse(photoFile.absolutePath)
                     Toast.makeText(this,uri.toString(),Toast.LENGTH_LONG).show()
                     Toast.makeText(this,"check cam",Toast.LENGTH_LONG).show()
+                    pressCam = true
                 }
 
     }
