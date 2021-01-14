@@ -138,7 +138,18 @@ class MainActivity : AppCompatActivity() {
 
 
             var imageRef = FirebaseStorage.getInstance().reference.child("Images")
-            uri?.let { imageRef.child(str).putFile(it)
+            imageRef.child(str).putFile(uri!!)
+                    .addOnSuccessListener {
+                        pd.dismiss()
+                        //val downloadURL = it.storage.downloadUrl.toString()
+                        Toast.makeText(this, "uploaded",Toast.LENGTH_LONG).show()
+                        ivImg.setImageBitmap(null)
+                        tvResult.text = ""
+                    }.addOnFailureListener{
+                        Toast.makeText(this, "failed ${it.message.toString()}",Toast.LENGTH_LONG).show()
+                        pd.dismiss()
+                    }
+           /* uri?.let { imageRef.child(str).putFile(it)
                     .addOnSuccessListener {
                         pd.dismiss()
                         val downloadURL = it.storage.downloadUrl.toString()
@@ -150,7 +161,7 @@ class MainActivity : AppCompatActivity() {
                         Toast.makeText(this, "failed ${it.message.toString()}",Toast.LENGTH_LONG).show()
                         pd.dismiss()
                     }
-            }
+            }*/
 
         }
 
