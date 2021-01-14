@@ -5,23 +5,23 @@ import android.app.Activity
 import android.app.ProgressDialog
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
-import android.graphics.Color
-import android.graphics.ColorMatrix
-import android.graphics.ColorMatrixColorFilter
+import android.graphics.*
 import android.net.Uri
 import android.os.Bundle
+import android.os.Environment
 import android.provider.MediaStore
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
+import androidx.core.content.FileProvider
 import com.app.applicationml.ml.Model
 import com.google.firebase.storage.FirebaseStorage
 import kotlinx.android.synthetic.main.activity_main.*
 import org.tensorflow.lite.DataType
 import org.tensorflow.lite.support.image.TensorImage
 import org.tensorflow.lite.support.tensorbuffer.TensorBuffer
+import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.text.SimpleDateFormat
@@ -34,6 +34,8 @@ class MainActivity : AppCompatActivity() {
     lateinit var bitmap: Bitmap
     lateinit var date: String
      var uri: Uri? = null
+    lateinit var photoFile: File
+    val FILE_NAME = "pic.jpg"
     //lateinit var imgview: ImageView
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -126,8 +128,12 @@ class MainActivity : AppCompatActivity() {
 
     private fun uploadImage() {
 
+
+
         if(uri!=null)
         {
+
+
             var pd = ProgressDialog(this)
             pd.setTitle("Uploading...")
             pd.show()
@@ -164,6 +170,10 @@ class MainActivity : AppCompatActivity() {
             }*/
 
         }
+        else
+        {
+            Toast.makeText(this, "null uri",Toast.LENGTH_LONG).show()
+        }
 
     }
 
@@ -197,7 +207,16 @@ class MainActivity : AppCompatActivity() {
     fun openCamera()
     {
         var camIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
+        photoFile = getPhotoFile(FILE_NAME)
+
+        val fileProvider = FileProvider.getUriForFile(this,"com.app.applicationml.fileprovider", photoFile)
+        camIntent.putExtra(MediaStore.EXTRA_OUTPUT, fileProvider)
         startActivityForResult(camIntent, 99)
+    }
+
+    private fun getPhotoFile(fileName: String): File {
+            val storageDirectory = getExternalFilesDir(Environment.DIRECTORY_PICTURES)
+        return File.createTempFile(fileName,".jpg", storageDirectory)
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -209,14 +228,21 @@ class MainActivity : AppCompatActivity() {
 
            uri = data?.data
 
-                bitmap = MediaStore.Images.Media.getBitmap(this.contentResolver, uri)
+            bitmap = MediaStore.Images.Media.getBitmap(this.contentResolver, uri)
+            Toast.makeText(this,uri.toString(),Toast.LENGTH_LONG).show()
             }
                  else if(requestCode == 99 && resultCode == Activity.RESULT_OK)
                 {
 
-                    uri = data?.data
-                    bitmap = data?.getParcelableExtra<Bitmap>("data")!!
+                    //ivImg.setImageURI(data?.data)
+
+
+                    bitmap = BitmapFactory.decodeFile(photoFile.absolutePath)
+
+
                     ivImg.setImageBitmap(bitmap)
+                    uri = Uri.parse(photoFile.absolutePath)
+                    Toast.makeText(this,uri.toString(),Toast.LENGTH_LONG).show()
                     Toast.makeText(this,"check cam",Toast.LENGTH_LONG).show()
                 }
 
