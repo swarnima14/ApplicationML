@@ -67,52 +67,63 @@ class MainActivity : AppCompatActivity() {
 
         btnPredict.setOnClickListener(View.OnClickListener {
 
-            var resized: Bitmap = Bitmap.createScaledBitmap(bitmap, 200, 200, true)
 
 
-            val input = ByteBuffer.allocateDirect(200*200*1*4).order(ByteOrder.nativeOrder())
-            for (y in 0 until 200) {
-                for (x in 0 until 200) {
-                    val px = resized.getPixel(x, y)
+            if( ivImg != null)
+            {
 
-                    // Get channel values from the pixel value.
-                    val r = Color.red(px)
-                    val g = Color.green(px)
-                    val b = Color.blue(px)
+                var resized: Bitmap = Bitmap.createScaledBitmap(bitmap, 200, 200, true)
 
-                    // Normalize channel values to [-1.0, 1.0]. This requirement depends on the model.
-                    // For example, some models might require values to be normalized to the range
-                    // [0.0, 1.0] instead.
-                    val rf = (r - 127) / 255f
-                    val gf = (g - 127) / 255f
-                    val bf = (b - 127) / 255f
-                    
-                    input.putFloat(bf)
+
+                val input = ByteBuffer.allocateDirect(200 * 200 * 1 * 4).order(ByteOrder.nativeOrder())
+                for (y in 0 until 200) {
+                    for (x in 0 until 200) {
+                        val px = resized.getPixel(x, y)
+
+                        // Get channel values from the pixel value.
+                        val r = Color.red(px)
+                        val g = Color.green(px)
+                        val b = Color.blue(px)
+
+                        // Normalize channel values to [-1.0, 1.0]. This requirement depends on the model.
+                        // For example, some models might require values to be normalized to the range
+                        // [0.0, 1.0] instead.
+                        val rf = (r - 127) / 255f
+                        val gf = (g - 127) / 255f
+                        val bf = (b - 127) / 255f
+
+                        input.putFloat(bf)
+                    }
                 }
-            }
 
 
-            val model = Model.newInstance(this)
+                val model = Model.newInstance(this)
 
-            // Creates inputs for reference.
-            val inputFeature0 = TensorBuffer.createFixedSize(intArrayOf(1, 200, 200, 1), DataType.FLOAT32)
+                // Creates inputs for reference.
+                val inputFeature0 = TensorBuffer.createFixedSize(intArrayOf(1, 200, 200, 1), DataType.FLOAT32)
 
-            /*var tbuffer = TensorImage.fromBitmap(resized)
+                /*var tbuffer = TensorImage.fromBitmap(resized)
             var byteBuffer = tbuffer.buffer*/
 
 
-            inputFeature0.loadBuffer(input)
+                inputFeature0.loadBuffer(input)
 
-            // Runs model inference and gets result.
-            val outputs = model.process(inputFeature0)
-            val outputFeature0 = outputs.outputFeature0AsTensorBuffer
+                // Runs model inference and gets result.
+                val outputs = model.process(inputFeature0)
+                val outputFeature0 = outputs.outputFeature0AsTensorBuffer
 
-            var max = getMax(outputFeature0.floatArray)
+                var max = getMax(outputFeature0.floatArray)
 
-            tvResult.text = townList[max]
+                tvResult.text = townList[max]
 
-            // Releases model resources if no longer used.
-            model.close()
+                // Releases model resources if no longer used.
+                model.close()
+            }
+
+            else
+            {
+                Toast.makeText(this, "Select image first.", Toast.LENGTH_SHORT).show()
+            }
 
         })
 
@@ -143,7 +154,14 @@ class MainActivity : AppCompatActivity() {
             var str = name.toString() + " "+ date
 
 
+           /* val storage = FirebaseStorage.getInstance()
+            val ref = storage.getReferenceFromUrl("gs://projectiitm-8f027.appspot.com")
+            val imageRef = ref.child("Images")*/
+
             var imageRef = FirebaseStorage.getInstance().reference.child("Images")
+
+
+
             imageRef.child(str).putFile(uri!!)
                     .addOnSuccessListener {
                         pd.dismiss()
@@ -172,7 +190,7 @@ class MainActivity : AppCompatActivity() {
         }
         else
         {
-            Toast.makeText(this, "null uri",Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Select image first.",Toast.LENGTH_LONG).show()
         }
 
     }
