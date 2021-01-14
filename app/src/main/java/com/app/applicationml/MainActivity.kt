@@ -151,12 +151,9 @@ class MainActivity : AppCompatActivity() {
 
             var name = tvResult.text
             Toast.makeText(this, "name $name" ,Toast.LENGTH_LONG).show()
-            var str = name.toString() + " "+ date
+            var str = UUID.randomUUID().toString()
 
 
-           /* val storage = FirebaseStorage.getInstance()
-            val ref = storage.getReferenceFromUrl("gs://projectiitm-8f027.appspot.com")
-            val imageRef = ref.child("Images")*/
 
             var imageRef = FirebaseStorage.getInstance().reference.child("Images")
 
