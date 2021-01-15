@@ -16,6 +16,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.FileProvider
 import com.app.applicationml.ml.Model
+import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.storage.FirebaseStorage
 import kotlinx.android.synthetic.main.activity_main.*
 import org.tensorflow.lite.DataType
@@ -33,10 +34,11 @@ class MainActivity : AppCompatActivity() {
 
     lateinit var bitmap: Bitmap
     lateinit var date: String
-     var uri: Uri? = null
     lateinit var photoFile: File
+
+    var uri: Uri? = null
     val FILE_NAME = "pic.jpg"
-    //lateinit var imgview: ImageView
+
     var pressGal: Boolean = false
     var pressCam: Boolean = false
 
@@ -49,8 +51,8 @@ class MainActivity : AppCompatActivity() {
         val townList = inpString.split("\n")
 
         val calendar = Calendar.getInstance()
-        val sdf = SimpleDateFormat("yyMMddHHmmssZ", Locale.ENGLISH)
-        date = sdf.format(calendar.time)
+        val sdf = SimpleDateFormat("yyyy.MM.dd G 'at' HH:mm:ss z", Locale.ENGLISH)
+        date = sdf.format(Date())
 
         btnSelect.setOnClickListener(View.OnClickListener {
 
@@ -116,7 +118,7 @@ class MainActivity : AppCompatActivity() {
 
                 var max = getMax(outputFeature0.floatArray)
 
-                tvResult.text = "Plant Name ${townList[max]}"
+                tvResult.text = "Plant Name: ${townList[max]}"
 
                 // Releases model resources if no longer used.
                 model.close()
@@ -141,57 +143,63 @@ class MainActivity : AppCompatActivity() {
 
     private fun uploadImage() {
 
-
-
-        if(uri!=null)
+        if(pressGal || pressCam)
         {
-
 
             var pd = ProgressDialog(this)
             pd.setTitle("Uploading...")
             pd.show()
 
-            var name = tvResult.text
-            Toast.makeText(this, "name $name" ,Toast.LENGTH_LONG).show()
+            var name = tvResult.text.toString()
+
             var str = UUID.randomUUID().toString()
 
-
-
             var imageRef = FirebaseStorage.getInstance().reference.child("Images")
-
-
 
             imageRef.child(str).putFile(uri!!)
                     .addOnSuccessListener {
                         pd.dismiss()
-                        //val downloadURL = it.storage.downloadUrl.toString()
-                        Toast.makeText(this, "uploaded",Toast.LENGTH_LONG).show()
-                        ivImg.setImageBitmap(null)
-                        tvResult.text = ""
-                        pressCam = false
-                        pressGal =false
-                    }.addOnFailureListener{
-                        Toast.makeText(this, "failed ${it.message.toString()}",Toast.LENGTH_LONG).show()
-                        pd.dismiss()
-                    }
-           /* uri?.let { imageRef.child(str).putFile(it)
-                    .addOnSuccessListener {
-                        pd.dismiss()
-                        val downloadURL = it.storage.downloadUrl.toString()
-                        Toast.makeText(this, "uploaded $downloadURL",Toast.LENGTH_LONG).show()
+
+
+                        val task = it.metadata!!.reference!!.downloadUrl
+                        task.addOnSuccessListener {
+
+                            var downloadURL = it.toString()
+
+                            Toast.makeText(this, "Uploaded",Toast.LENGTH_SHORT).show()
+
+                            val db = FirebaseDatabase.getInstance()
+                            val ref = db.reference.child("Data")
+
+                            var hashMap : HashMap<String, String> = HashMap<String, String> ()
+
+                             hashMap.put("Name",name)
+                             hashMap.put("Date",date)
+                             hashMap.put("Image URL", downloadURL)
+
+                             ref.push().setValue(hashMap).addOnSuccessListener {
+                                 Toast.makeText(this, "Saved to database.",Toast.LENGTH_SHORT).show()
+                             }.addOnFailureListener{
+                                 Toast.makeText(this, "Not saved to database.",Toast.LENGTH_SHORT).show()
+                             }
+                         }
+
+
                         ivImg.setImageBitmap(null)
                         tvResult.text = ""
 
-            } .addOnFailureListener{
-                        Toast.makeText(this, "failed ${it.message.toString()}",Toast.LENGTH_LONG).show()
+                        pressCam = false
+                        pressGal =false
+
+                    }.addOnFailureListener{
+                        Toast.makeText(this, "Upload failed due to error:  ${it.message.toString()}",Toast.LENGTH_SHORT).show()
                         pd.dismiss()
                     }
-            }*/
 
         }
         else
         {
-            Toast.makeText(this, "Select image first.",Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Select image first.",Toast.LENGTH_SHORT).show()
         }
 
     }
@@ -218,7 +226,7 @@ class MainActivity : AppCompatActivity() {
         }
         else
         {
-            Toast.makeText(this, "Camera permission is necessary.", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Camera permission is necessary.", Toast.LENGTH_SHORT).show()
         }
 
     }
@@ -241,31 +249,20 @@ class MainActivity : AppCompatActivity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
 
-        if(requestCode == 100 && resultCode == Activity.RESULT_OK) {
-
+        if(requestCode == 100 && resultCode == Activity.RESULT_OK)
+        {
             ivImg.setImageURI(data?.data)
-
-           uri = data?.data
-
+            uri = data?.data
             bitmap = MediaStore.Images.Media.getBitmap(this.contentResolver, uri)
-            Toast.makeText(this,uri.toString(),Toast.LENGTH_LONG).show()
             pressGal = true
-            }
-                 else if(requestCode == 99 && resultCode == Activity.RESULT_OK)
-                {
-
-                    //ivImg.setImageURI(data?.data)
-
-
-                    bitmap = BitmapFactory.decodeFile(photoFile.absolutePath)
-
-
-                    ivImg.setImageBitmap(bitmap)
-                    uri = Uri.parse(photoFile.absolutePath)
-                    Toast.makeText(this,uri.toString(),Toast.LENGTH_LONG).show()
-                    Toast.makeText(this,"check cam",Toast.LENGTH_LONG).show()
-                    pressCam = true
-                }
+        }
+        else if(requestCode == 99 && resultCode == Activity.RESULT_OK)
+        {
+            bitmap = BitmapFactory.decodeFile(photoFile.absolutePath)
+            ivImg.setImageBitmap(bitmap)
+            uri = Uri.parse(photoFile.absolutePath)
+            pressCam = true
+        }
 
     }
 
