@@ -260,7 +260,8 @@ class MainActivity : AppCompatActivity() {
         {
             bitmap = BitmapFactory.decodeFile(photoFile.absolutePath)
             ivImg.setImageBitmap(bitmap)
-            uri = Uri.parse(photoFile.absolutePath)
+            uri = Uri.fromFile((photoFile))
+          //  Toast.makeText(this, "uri $uri", Toast.LENGTH_SHORT).show()
             pressCam = true
         }
 
