@@ -38,6 +38,7 @@ class MainActivity : AppCompatActivity() {
 
     var uri: Uri? = null
     val FILE_NAME = "pic.jpg"
+    lateinit var name: String
 
     var pressGal: Boolean = false
     var pressCam: Boolean = false
@@ -48,7 +49,7 @@ class MainActivity : AppCompatActivity() {
 
         val fileName = "classes.txt"
         val inpString = application.assets.open(fileName).bufferedReader().use { it.readText() }
-        val townList = inpString.split("\n")
+        val cropList = inpString.split("\n")
 
         val calendar = Calendar.getInstance()
         val sdf = SimpleDateFormat("yyyy.MM.dd G 'at' HH:mm:ss z", Locale.ENGLISH)
@@ -56,6 +57,7 @@ class MainActivity : AppCompatActivity() {
 
         btnSelect.setOnClickListener(View.OnClickListener {
 
+            tvResult.text = ""
             var intent: Intent = Intent(Intent.ACTION_GET_CONTENT)
             intent.type = "image/*"
 
@@ -65,15 +67,16 @@ class MainActivity : AppCompatActivity() {
 
 
         btnCapture.setOnClickListener(View.OnClickListener {
+            tvResult.text = ""
             askForPermission()
         })
 
 
-        btnPredict.setOnClickListener(View.OnClickListener {
+       /* btnPredict.setOnClickListener(View.OnClickListener {
 
 
 
-            if( pressCam || pressGal)
+           /* if( pressCam || pressGal)
             {
 
                 var resized: Bitmap = Bitmap.createScaledBitmap(bitmap, 200, 200, true)
@@ -106,8 +109,6 @@ class MainActivity : AppCompatActivity() {
                 // Creates inputs for reference.
                 val inputFeature0 = TensorBuffer.createFixedSize(intArrayOf(1, 200, 200, 1), DataType.FLOAT32)
 
-                /*var tbuffer = TensorImage.fromBitmap(resized)
-            var byteBuffer = tbuffer.buffer*/
 
 
                 inputFeature0.loadBuffer(input)
@@ -118,7 +119,10 @@ class MainActivity : AppCompatActivity() {
 
                 var max = getMax(outputFeature0.floatArray)
 
-                tvResult.text = "Plant Name: ${townList[max]}"
+                    if(max == -1)
+                        tvResult.text = "Invalid picture"
+                else
+                    tvResult.text = "Plant Name: ${cropList[max]}"
 
                 // Releases model resources if no longer used.
                 model.close()
@@ -127,30 +131,30 @@ class MainActivity : AppCompatActivity() {
             else
             {
                 Toast.makeText(this, "Select image first.", Toast.LENGTH_SHORT).show()
-            }
+            }*/
 
         })
 
 
         btnUpload.setOnClickListener(View.OnClickListener {
 
-            uploadImage()
+         //   uploadImage()
 
-        })
+        })*/
 
 
     }
 
     private fun uploadImage() {
 
-        if(pressGal || pressCam)
-        {
-
+       // if(pressGal || pressCam)
+      //  {
+      //  Toast.makeText(this, "inside upload", Toast.LENGTH_SHORT).show()
             var pd = ProgressDialog(this)
             pd.setTitle("Uploading...")
             pd.show()
 
-            var name = tvResult.text.toString()
+           // var name = tvResult.text.toString()
 
             var str = UUID.randomUUID().toString()
 
@@ -179,6 +183,7 @@ class MainActivity : AppCompatActivity() {
 
                              ref.push().setValue(hashMap).addOnSuccessListener {
                                  Toast.makeText(this, "Saved to database.",Toast.LENGTH_SHORT).show()
+                                 ivImg.setImageBitmap(null)
                              }.addOnFailureListener{
                                  Toast.makeText(this, "Not saved to database.",Toast.LENGTH_SHORT).show()
                              }
@@ -196,12 +201,76 @@ class MainActivity : AppCompatActivity() {
                         pd.dismiss()
                     }
 
-        }
+       /* }
         else
         {
             Toast.makeText(this, "Select image first.",Toast.LENGTH_SHORT).show()
+        }*/
+
+    }
+
+    private fun predictName(){
+
+      //  Toast.makeText(this, "inside predict", Toast.LENGTH_SHORT).show()
+
+        val fileName = "classes.txt"
+        val inpString = application.assets.open(fileName).bufferedReader().use { it.readText() }
+        val cropList = inpString.split("\n")
+
+        var resized: Bitmap = Bitmap.createScaledBitmap(bitmap, 200, 200, true)
+
+
+        val input = ByteBuffer.allocateDirect(200 * 200 * 1 * 4).order(ByteOrder.nativeOrder())
+        for (y in 0 until 200) {
+            for (x in 0 until 200) {
+                val px = resized.getPixel(x, y)
+
+                // Get channel values from the pixel value.
+                val r = Color.red(px)
+                val g = Color.green(px)
+                val b = Color.blue(px)
+
+                // Normalize channel values to [-1.0, 1.0]. This requirement depends on the model.
+                // For example, some models might require values to be normalized to the range
+                // [0.0, 1.0] instead.
+                val rf = (r - 127) / 255f
+                val gf = (g - 127) / 255f
+                val bf = (b - 127) / 255f
+
+                input.putFloat(bf)
+            }
         }
 
+
+        val model = Model.newInstance(this)
+
+        // Creates inputs for reference.
+        val inputFeature0 = TensorBuffer.createFixedSize(intArrayOf(1, 200, 200, 1), DataType.FLOAT32)
+
+
+
+        inputFeature0.loadBuffer(input)
+
+        // Runs model inference and gets result.
+        val outputs = model.process(inputFeature0)
+        val outputFeature0 = outputs.outputFeature0AsTensorBuffer
+
+        var max = getMax(outputFeature0.floatArray)
+
+        if(max == -1){
+            tvResult.text = "Invalid picture"
+            name = "Invalid"
+        }
+
+        else{
+            name = cropList[max]
+            tvResult.text = "Plant Name: ${cropList[max]}"
+
+        }
+
+
+        // Releases model resources if no longer used.
+        model.close()
     }
 
     fun askForPermission()
@@ -254,35 +323,45 @@ class MainActivity : AppCompatActivity() {
             ivImg.setImageURI(data?.data)
             uri = data?.data
             bitmap = MediaStore.Images.Media.getBitmap(this.contentResolver, uri)
-            pressGal = true
+
+            predictName()
+            uploadImage()
+
+          //  pressGal = true
         }
         else if(requestCode == 99 && resultCode == Activity.RESULT_OK)
         {
             bitmap = BitmapFactory.decodeFile(photoFile.absolutePath)
             ivImg.setImageBitmap(bitmap)
             uri = Uri.fromFile((photoFile))
+
+            predictName()
+            uploadImage()
           //  Toast.makeText(this, "uri $uri", Toast.LENGTH_SHORT).show()
-            pressCam = true
+
+
+
+
+         //   pressCam = true
         }
 
     }
 
     fun getMax(arr: FloatArray): Int{
 
-        var ind = 0
+        var ind = -1
         var min = 0.0f
 
-        for(i in 0..3)
-        {
+            for (i in 0..3) {
 
-            if (arr[i] > min)
-            {
-                ind = i
-                min = arr[i]
+                if (arr[i] > min) {
+                    ind = i
+                    min = arr[i]
+
+                }
 
             }
 
-        }
         return ind
     }
 
