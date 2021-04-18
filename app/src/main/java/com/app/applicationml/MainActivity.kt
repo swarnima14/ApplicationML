@@ -10,6 +10,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.MediaStore
@@ -45,6 +46,8 @@ class MainActivity : AppCompatActivity() {
     lateinit var photoFile: File
     lateinit var fileProvider: Uri
 
+    var output: ByteBuffer? = null
+
     var uri: Uri? = null
     val FILE_NAME = "pic.jpg"
     lateinit var name: String
@@ -55,6 +58,13 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+
+            // Make sure we're running on Honeycomb or higher to use ActionBar APIs
+            /*if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB) {
+                actionBar!!.setDisplayHomeAsUpEnabled(true)
+            }*/
+
 
         val fileName = "classes.txt"
         val inpString = application.assets.open(fileName).bufferedReader().use { it.readText() }
@@ -85,6 +95,7 @@ class MainActivity : AppCompatActivity() {
 
             var pd = ProgressDialog(this)
             pd.setTitle("Uploading...")
+
             pd.show()
 
             var str = UUID.randomUUID().toString()
@@ -142,7 +153,7 @@ class MainActivity : AppCompatActivity() {
 
         var resized: Bitmap = Bitmap.createScaledBitmap(bitmap, 200, 200, true)
 
-        val input = ByteBuffer.allocateDirect(200 * 200 * 1 * 4).order(ByteOrder.nativeOrder())
+        /*output = ByteBuffer.allocateDirect(200 * 200 * 1 * 4).order(ByteOrder.nativeOrder())
         for (y in 0 until 200) {
             for (x in 0 until 200) {
                 val px = resized.getPixel(x, y)
@@ -159,9 +170,11 @@ class MainActivity : AppCompatActivity() {
                 val gf = (g - 127) / 255f
                 val bf = (b - 127) / 255f
 
-                input.putFloat(bf)
+                output!!.putFloat(b.toFloat())
+                output!!.putFloat(g.toFloat())
+                output!!.putFloat(r.toFloat())
             }
-        }
+        }*/
 
 
         val model = Model.newInstance(this)
@@ -169,11 +182,16 @@ class MainActivity : AppCompatActivity() {
         // Creates inputs for reference.
         val inputFeature0 = TensorBuffer.createFixedSize(intArrayOf(1, 200, 200, 1), DataType.FLOAT32)
 
-        inputFeature0.loadBuffer(input)
+        output = convertBitmapToByteBuffer(resized)
+
+        inputFeature0.loadBuffer(output!!)
+
+       // ivImg.setImageBitmap(getOutputImage())
 
         // Runs model inference and gets result.
         val outputs = model.process(inputFeature0)
         val outputFeature0 = outputs.outputFeature0AsTensorBuffer
+
 
         var max = getMax(outputFeature0.floatArray)
 
@@ -185,12 +203,14 @@ class MainActivity : AppCompatActivity() {
         else{
             name = cropList[max]
             tvResult.text = "Plant Name: ${cropList[max]}"
-
+          //  uploadImage()
         }
 
 
         // Releases model resources if no longer used.
         model.close()
+
+
     }
 
     fun askForPermission()
@@ -303,7 +323,9 @@ class MainActivity : AppCompatActivity() {
 
             for (i in 0..3) {
 
-                if (arr[i] > min) {
+              //  Toast.makeText(this, "val: ${arr[i]}", Toast.LENGTH_SHORT).show()
+
+                if (arr[i]>0.7 && arr[i]>min) {
                     ind = i
                     min = arr[i]
 
@@ -313,6 +335,53 @@ class MainActivity : AppCompatActivity() {
 
         return ind
     }
+
+    private fun convertBitmapToByteBuffer(bmp: Bitmap): ByteBuffer {
+        // Specify the size of the byteBuffer
+        val byteBuffer = ByteBuffer.allocateDirect(200 * 200 * 1 * 4)
+        byteBuffer.order(ByteOrder.nativeOrder())
+        // Calculate the number of pixels in the image
+        val pixels = IntArray(200 * 200)
+        bmp.getPixels(pixels, 0, bmp.width, 0, 0, bmp.width, bmp.height)
+        var pixel = 0
+        // Loop through all the pixels and save them into the buffer
+        for (i in 0 until 200) {
+            for (j in 0 until 200) {
+                val pixelVal = pixels[pixel++]
+                // Do note that the method to add pixels to byteBuffer is different for quantized models over normal tflite models
+                 //byteBuffer.put((pixelVal shr 16 and 0xFF).toByte())
+                 //byteBuffer.put((pixelVal shr 8 and 0xFF).toByte())
+                 //byteBuffer.put((pixelVal and 0xFF).toByte())
+
+ //               byteBuffer.putFloat((pixelVal shr 16 and 0xFF) / 255f)
+//                byteBuffer.putFloat((pixelVal shr 8 and 0xFF) / 255f)
+                byteBuffer.putFloat(((pixelVal and 0xFF).toFloat()))
+            }
+        }
+
+        // Recycle the bitmap to save memory
+        bmp.recycle()
+        return byteBuffer
+    }
+
+    private fun getOutputImage(): Bitmap {
+        output?.rewind() // Rewind the output buffer after running.
+
+        val bitmap = Bitmap.createBitmap(200, 200, Bitmap.Config.ARGB_8888)
+        val pixels = IntArray(200 * 200) // Set your expected output's height and width
+        for (i in 0 until 200 * 200) {
+            val a = 0xFF
+            //val r: Float = output?.float!! * 255.0f
+           // val g: Float = output?.float!! * 255.0f
+            val b: Float = output?.float!!
+            pixels[i] = a shl 24 or  b.toInt()
+        }
+//a shl 24 or (r.toInt() shl 16) or (g.toInt() shl 8) or b.toInt()
+        bitmap.setPixels(pixels, 0, 200, 0, 0, 200, 200)
+
+        return bitmap
+    }
+
 
     override fun onBackPressed() {
         super.onBackPressed()
